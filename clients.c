@@ -27,6 +27,57 @@ void Error(const char *errmessage)
 */
 // Global Variables
 char name[NAME_SIZE]="[Default]";
+char msg[buffer_size];
+
+//Function to send message 
+
+unsigned WINAPI send_msg(void * arg)  //send thread
+{
+	SOCKET SocketDesc=*((SOCKET*)arg);
+	char NameMsg[NAME_SIZE+buffer_size];
+
+	send(SocketDesc,name,strlen(name),0);  //sending name to server
+	
+
+	while(1)
+	{
+		fgets(msg,buffer_size,stdin);
+		// breaking the connection if a client says exit(i.e., q\n)
+		if (strcmp(msg,"q\n")||strcmp(msg,"Q\n"))
+		{
+			closesocket(SocketDesc);
+			exit(0);
+		}
+		sprintf(NameMsg,"%s %s",name,msg);
+		send(SocketDesc,NameMsg,strlen(NameMsg),0);
+		printf("Testing\n");
+	}
+	
+}
+
+
+//Function to receive the message
+
+unsigned WINAPI receive_msg(void * arg)  //receive thread
+{
+	SOCKET SocketDesc=*((SOCKET*)arg);
+	char NameMsg[NAME_SIZE+buffer_size];
+	int strLen;
+
+	
+
+	while(1)
+	{
+		
+		strLen=recv(SocketDesc,NameMsg,NAME_SIZE+buffer_size-1,0);
+		if (strLen==0) break;
+		NameMsg[strLen]='\0';
+		fputs(NameMsg,stdout);
+	}
+	return 0;
+}
+
+
 
 
 int main(int argc,char *argv[])
@@ -37,7 +88,8 @@ int main(int argc,char *argv[])
 	struct sockaddr_in server;  /* here, server is a variable of type sockaddr_in , sockaddr_in is structure that deals with IP addresses 
 	                                and it has various methods like sin_family,sin_addr */
 	char *message;
-	
+	HANDLE SendThread,ReceiveThread;
+
 	/* if cl arguments donot contain required no. of arguments(i.e., 4 here),it shows required format to use and then exits */
 
 	if (argc !=4)     //argc is of int type and used to store no. of arguments in command line arguments  
@@ -57,6 +109,8 @@ int main(int argc,char *argv[])
 	printf("Winsock Initialised\n");
 	
 
+	sprintf(name,"[%s]",argv[3]);
+
 	//Creating TCP Socket
 	SocketDesc=socket(AF_INET,SOCK_STREAM,0);  // sock_stream used for TCP connection
 	if(SocketDesc==INVALID_SOCKET)
@@ -70,7 +124,7 @@ int main(int argc,char *argv[])
 
     
     //Socket settings
-   
+	memset(&server,0,sizeof(server));
 	server.sin_addr.s_addr=inet_addr(argv[1]); /*inet_addr is a function to convert IP address(here, google.com's ip address) into long format
                                                          SocketDesc_addr contains IP address in long format */
 	server.sin_family=AF_INET; 
@@ -94,6 +148,11 @@ int main(int argc,char *argv[])
  	SendThread=(HANDLE)_beginthreadex(NULL,0,send_msg,(void*)&SocketDesc,0,NULL);
  	ReceiveThread=(HANDLE)_beginthreadex(NULL,0,receive_msg,(void*)&SocketDesc,0,NULL);
 
+ 	WaitForSingleObject(SendThread,INFINITE);
+ 	WaitForSingleObject(ReceiveThread,INFINITE);
+
+ 	closesocket(SocketDesc);
+ 	WSACleanup();
  	
 
 
@@ -101,27 +160,4 @@ int main(int argc,char *argv[])
     	return 0;
 }
 
-//Function to send message 
 
-void send_msg(void *arg)  //send thread
-{
-	SOCKET SocketDesc=*((SOCKET*)arg);
-	char NameMsg[NAME_SIZE+buffer_size];
-
-	send(SocketDesc,name,strlen(name),0);  //sending name to server
-	
-
-	while(True)
-	{
-		fgets(message,buffer_size,stdin);
-		// breaking the connection if a client says exit(i.e., q\n)
-		if (strcmp(message,"q\n")||strcmp(message,"Q\n"))
-		{
-			closesocket(SocketDesc);
-			exit(0);
-		}
-		sprintf(NameMsg,"%s %s",name,message);
-		send(SocketDesc,NameMsg,strlen(NameMsg),0);
-	}
-	return 0;
-}
