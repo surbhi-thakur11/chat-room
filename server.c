@@ -1,73 +1,54 @@
-#include<io.h>
-#include<stdio.h>
-#include<winsock2.h>
+#include <sys/socket.h>
+#include <stdio.h>
+#include <string.h>
+#include <arpa/inet.h>
 
-#pragma comment(lib,"ws2_32.lib") //Winsock Library
 
-int main(int argc , char *argv[])
-{
-	WSADATA wsa;
-	SOCKET s , new_socket;
-	struct sockaddr_in server , client;
-	int c;
-	char *message;
-
-	printf("\nInitialising Winsock...");
-	if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
+int main()
+{       //Declaring variables 
+	struct sockaddr_in server_ip , client;
+	int sock=0 , client_sock=0;
+	int n=0;
+	int clients[20];
+	
+	//creating TCP socket
+	sock = socket( AF_INET , SOCK_STREAM, 0 ); 
+	if (sock !=-1)
 	{
-		printf("Failed. Error Code : %d",WSAGetLastError());
-		return 1;
-	}
+	 printf("Socket Created\n");
+	 }
+	else 
+	 printf("Couldn't create socket\n");
+	 
+	//Socket Settings	
+	server_ip.sin_family = AF_INET;
+	server_ip.sin_port = htons(8888);  //port number
+	server_ip.sin_addr.s_addr = inet_addr("127.0.0.1");  // assigning machine's ip address
 	
-	printf("Initialised.\n");
-	
-	//Create a socket  using create(), Create TCP socket.
-	if((s = socket(AF_INET , SOCK_STREAM , 0 )) == INVALID_SOCKET)
-	{
-		printf("Could not create socket : %d" , WSAGetLastError());
-	}
+	//Binding Socket to Server's address
+	if( bind( sock, (struct sockaddr *)&server_ip, sizeof(server_ip)) != -1 )
+		printf("Server Started\n");
+	else
+		printf("Error!! Cannot bind \n");
 
-	printf("Socket created.\n");
 	
-	//Prepare the sockaddr_in structure,assign IP, PORT 
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons( 8888 );
+	//Listening to incoming connections from client.	
+	if( listen( sock ,50 ) != -1 )
+		printf("Listening to Clients... \n");
+	else
+		printf("listening failed \n");
 	
-	// Bind the socket to server address.
-	if( bind(s ,(struct sockaddr *)&server , sizeof(server)) == SOCKET_ERROR)
+	//Accepting client connections
+	client_sock = accept(sock, (struct sockaddr *)&client,NULL);	
+	while(1)
 	{
-		printf("Bind failed with error code : %d" , WSAGetLastError());
-		exit(EXIT_FAILURE);
-	}
-	
-	puts("Bind done");
-
-	//Listen to incoming connections using listen(), put the server socket in a passive mode, where it waits for the client to approach the server to make a connection
-	listen(s , 3);
-	
-	//Accept and incoming connection At this point, connection is established between client and server, and they are ready to transfer data.
-	puts("Waiting for incoming connections...");
-	
-	c = sizeof(struct sockaddr_in);
-	
-	while( (new_socket = accept(s , (struct sockaddr *)&client, &c)) != INVALID_SOCKET )
-	{
-		puts("Connection accepted");
+		if((client_sock ) != -1 )
+			printf("Connection not accepted\n");
 		
-		//Reply to the client
-		message = "Hello Client , I have received your connection. But I have to go now, bye\n";
-		send(new_socket , message , strlen(message) , 0);
-	}
+		
+			
+			}
 	
-	if (new_socket == INVALID_SOCKET)
-	{
-		printf("accept failed with error code : %d" , WSAGetLastError());
-		return 1;
-	}
-
-	closesocket(s);
-	WSACleanup();
+	return 0; 
 	
-	return 0;
 }
