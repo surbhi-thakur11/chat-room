@@ -2,53 +2,64 @@
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
+pthread_mutex_t mutex;
+int clients[20];
+int n=0;
 
-int main()
-{       //Declaring variables 
-	struct sockaddr_in server_ip , client;
-	int sock=0 , client_sock=0;
-	int n=0;
-	int clients[20];
-	
-	//creating TCP socket
-	sock = socket( AF_INET , SOCK_STREAM, 0 ); 
-	if (sock !=-1)
-	{
-	 printf("Socket Created\n");
-	 }
-	else 
-	 printf("Couldn't create socket\n");
-	 
-	//Socket Settings	
-	server_ip.sin_family = AF_INET;
-	server_ip.sin_port = htons(8888);  //port number
-	server_ip.sin_addr.s_addr = inet_addr("127.0.0.1");  // assigning machine's ip address
-	
-	//Binding Socket to Server's address
-	if( bind( sock, (struct sockaddr *)&server_ip, sizeof(server_ip)) != -1 )
-		printf("Server Started\n");
-	else
-		printf("Error!! Cannot bind \n");
-
-	
-	//Listening to incoming connections from client.	
-	if( listen( sock ,50 ) != -1 )
-		printf("Listening to Clients... \n");
-	else
-		printf("listening failed \n");
-	
-	//Accepting client connections
-	client_sock = accept(sock, (struct sockaddr *)&client,NULL);	
-	while(1)
-	{
-		if((client_sock ) != -1 )
-			printf("Connection not accepted\n");
-		
-		
-			
+void sendtoall(char *msg,int curr){
+	int i;
+	pthread_mutex_lock(&mutex);
+	for(i = 0; i < n; i++) {
+		if(clients[i] != curr) {
+			if(send(clients[i],msg,strlen(msg),0) < 0) {
+				printf("sending failure n");
+				continue;
 			}
+		}
+	}
+	pthread_mutex_unlock(&mutex);
+}
+
+void *recvmg(void *client_sock){
+	int sock = *((int *)client_sock);
+	char msg[500];
+	int len;
+	while((len = recv(sock,msg,500,0)) > 0) {
+		msg[len] = '\0';
+		sendtoall(msg,sock);
+	}
 	
+}
+
+int main(){
+	struct sockaddr_in ServerIp;
+	pthread_t recvt;
+	int sock=0 , Client_sock=0;
+	
+	ServerIp.sin_family = AF_INET;
+	ServerIp.sin_port = htons(8888);
+	ServerIp.sin_addr.s_addr = inet_addr("127.0.0.1");
+	sock = socket( AF_INET , SOCK_STREAM, 0 );
+	if( bind( sock, (struct sockaddr *)&ServerIp, sizeof(ServerIp)) == -1 )
+		printf("cannot bind, error!! \n");
+	else
+		printf("Server Started\n");
+		
+	if( listen( sock ,50 ) == -1 )
+		printf("listening failed \n");
+		
+	while(1){
+		if( (Client_sock = accept(sock, (struct sockaddr *)NULL,NULL)) < 0 )
+			printf("accept failed  \n");
+		pthread_mutex_lock(&mutex);
+		clients[n]= Client_sock;
+		n++;
+		// creating a thread for each client 
+		pthread_create(&recvt,NULL,(void *)recvmg,&Client_sock);
+		pthread_mutex_unlock(&mutex);
+	}
 	return 0; 
 	
 }

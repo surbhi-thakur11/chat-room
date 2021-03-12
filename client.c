@@ -1,48 +1,54 @@
-//To run the code enter "./a.out Name" 
 #include <sys/socket.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-
+#include <pthread.h>
 
 char msg[500];
 
-
-int main(int argc,char *argv[])
+void *recvmg(void *my_sock)
 {
-	//Declaring variables
+	int sock = *((int *)my_sock);
+	int len;
+	// client thread always ready to receive message
+	while((len = recv(sock,msg,500,0)) > 0) {
+		msg[len] = '\0';
+		fputs(msg,stdout);
+	}
+}
+
+int main(int argc,char *argv[]){
+	pthread_t recvt;
 	int len;
 	int sock;
-	int c;
 	char send_msg[500];
-	struct sockaddr_in server_ip;
+	struct sockaddr_in ServerIp;
 	char client_name[100];
-	
-	//storing name entered by client in variable 'client_name'
-	strcpy(client_name, argv[1]); //argv[1] takes the name that client enters 
-	
-	//Creating TCP socket
+	strcpy(client_name, argv[1]);
 	sock = socket( AF_INET, SOCK_STREAM,0);
-	if (sock !=-1)
-	{
-	 printf("Socket Created\n");
-	 }
-	else 
-	 printf("Couldn't create socket\n");
-	 
-	//Socket Settings
-	server_ip.sin_port = htons(8888);
-	server_ip.sin_family= AF_INET;
-	server_ip.sin_addr.s_addr = inet_addr("127.0.0.1");
+	ServerIp.sin_port = htons(8888);
+	ServerIp.sin_family= AF_INET;
+	ServerIp.sin_addr.s_addr = inet_addr("127.0.0.1");
+	if( (connect( sock ,(struct sockaddr *)&ServerIp,sizeof(ServerIp))) == -1 )
+		printf("\n connection to socket failed \n");
 	
-	//Connecting socket to Server's address
-	c=connect( sock ,(struct sockaddr *)&server_ip,sizeof(server_ip));
-	if( c != -1 )
-		printf("Connected to server \n");
-	else
-		printf("Connection failed \n");
-		
+	//creating a client thread which is always waiting for a message
+	pthread_create(&recvt,NULL,(void *)recvmg,&sock);
+	
+	//ready to read a message from console
+	while(fgets(msg,500,stdin) > 0) {
+		strcpy(send_msg,client_name);
+		strcat(send_msg,":");
+		strcat(send_msg,msg);
+		len = write(sock,send_msg,strlen(send_msg));
+		if(len < 0) 
+			printf("\n message not sent \n");
+			
+	}
+	
+	//thread is closed
+	pthread_join(recvt,NULL);
 	close(sock);
 	return 0;
 }
