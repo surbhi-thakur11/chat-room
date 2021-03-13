@@ -7,12 +7,13 @@
 pthread_mutex_t mutex;
 int clients[20];
 int n=0;
-
+int l = sizeof(clients)/sizeof(clients[0]);  //find number of connected clients
 void sendtoall(char *msg,int curr){
 	int i;
 	pthread_mutex_lock(&mutex);
+	 
 	for(i = 0; i < n; i++) {
-		if(clients[i] != curr) {
+		if(clients[i] != curr) {    //sending message to all clients expect the sender
 			if(send(clients[i],msg,strlen(msg),0) < 0) {
 				printf("sending failure n");
 				continue;
@@ -27,8 +28,8 @@ void *recvmg(void *client_sock){
 	char msg[500];
 	int len;
 	while((len = recv(sock,msg,500,0)) > 0) {
-		msg[len] = '\0';
-		sendtoall(msg,sock);
+		msg[len] = '\0';     //initialize msg[len]
+		sendtoall(msg,sock);  
 	}
 	
 }
@@ -45,19 +46,31 @@ int main(){
 	if( bind( sock, (struct sockaddr *)&ServerIp, sizeof(ServerIp)) == -1 )
 		printf("cannot bind, error!! \n");
 	else
-		printf("Server Started\n");
+		printf("Server Started\n");  //binding to the server
 		
 	if( listen( sock ,50 ) == -1 )
 		printf("listening failed \n");
 		
 	while(1){
+	  
 		if( (Client_sock = accept(sock, (struct sockaddr *)NULL,NULL)) < 0 )
+		
 			printf("accept failed  \n");
 		pthread_mutex_lock(&mutex);
 		clients[n]= Client_sock;
 		n++;
-		// creating a thread for each client 
-		pthread_create(&recvt,NULL,(void *)recvmg,&Client_sock);
+		
+		pthread_create(&recvt,NULL,(void *)recvmg,&Client_sock);   // creating a thread for each client 
+
+
+		//here below, we had tried logic to accept minimum 3 clients; but wasn't working. So commented this part
+		/*printf("%d",l);
+		if (l<3){
+		printf("Please add atleast 3 participants to start the chat");
+		pthread_mutex_unlock(&mutex);
+		//break;  //either break or continue shall come here
+	}*/
+	
 		pthread_mutex_unlock(&mutex);
 	}
 	return 0; 
