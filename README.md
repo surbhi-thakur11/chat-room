@@ -22,5 +22,5 @@ Open 1 Terminal for Server and type->
 >./a.out  
 
 For every other Terminal opened for each client, type->  
->cc client.c -pthread -o client
+>gcc client.c -pthread -o client
 >./client
